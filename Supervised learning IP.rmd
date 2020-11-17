@@ -1,0 +1,374 @@
+---
+title: "Supermarket dataset"
+author: "Griffin Kaiga"
+date: "11/12/2020"
+output: html_document
+---
+
+```{r}
+# loading the data
+sales <- read.csv("Supermarket.csv", header = TRUE)
+head(sales)
+
+# checking the data types
+nrow(sales)
+ncol(sales)
+names(sales)
+str(sales)
+
+
+```
+```{r}
+
+# checking for missing values
+any(is.na(sales))
+```
+# we do not have missing values in our dataset
+
+```{r}
+
+# check for duplicates
+sales <- sales[!duplicated(sales),]
+sales
+```
+# there are no duplicates in our dataset
+
+
+```{r}
+
+# check for unique values in each and every column
+#lapply(sales, function(x)unique(x))
+
+```
+
+Outliers
+
+```{r}
+# get numeric variables
+num.col <- sales[, unlist(lapply(sales, is.numeric))]
+num.col
+```
+```{r}
+library(ggplot2)
+library(reshape2)
+options(repr.plot.width = 22, repr.plot.height = 25)
+ggplot(melt(num.col), aes(variable, value)) + geom_boxplot()+facet_wrap(~variable, scale="free")
+
+
+```
+# the variables cog, tax, gross income, contain outliers which could not be removed since they are all valid
+
+
+
+
+Univariate Analysis
+
+```{r}
+# Getting the mean,median,quatiles, min and max
+summary(sales)
+```
+
+```{r}
+# grouping categorical columns separately
+library(dplyr)
+
+categorical.cols <- sales %>% select([-num.col])
+categorical.cols
+```
+
+```{r}
+# Mode of each column
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+lapply(numeric.cols, FUN=getmode)
+lapply(categorical.cols, FUN=getmode)
+
+```
+```{r}
+# getting the standard deviation
+std <- lapply(numeric.cols, FUN = sd)
+std
+```
+```{r}
+#  getting the range for the numeric columns
+
+range <- lapply(numeric.cols, FUN = range)
+range
+```
+```{r}
+# getting the kurtosis
+lapply(numeric.cols, FUN = Skewness)
+```
+
+
+```{r}
+# plotting histograms for the numeric columns
+par(mfrow = c(4,4))
+column.names <- dimnames(num.col)[[2]]
+for (i in 1:7) {
+  hist(column.names[,i], main= column.names[i], probability=TRUE, color = 'green', border = 'black')}
+
+
+
+
+colnames <- dimnames(num.col)[[2]]
+for (i in 1:7) {
+    hist(column.names[,i], main=colnames[i], probability=TRUE, color="red", border="black")}
+```
+
+
+
+```{r}
+par(mfrow=c(3,2))
+hist(num.col$Unit.price)
+hist(num.col$gross.income)
+hist(num.col$Quantity)
+hist(num.col$cogs)
+hist(num.col$gross.margin.percentage)
+hist(num.col$Tax)
+hist(num.col$Rating)
+
+
+```
+
+Implementing the solution 
+ PRINCIPAL COMPONENT ANALYSIS
+
+```{r}
+# converting categorical columns to numeric
+sales$Branch <- as.integer(as.factor(sales$Branch))
+
+sales$Customer.type <- as.integer(as.factor(sales$Customer.type))
+
+sales$Gender <- as.integer(as.factor(sales$Gender))
+
+sales$Product.line <- as.integer(as.factor(sales$Product.line))
+
+sales$Payment <- as.integer(as.factor(sales$Payment))
+
+sales$Invoice.ID <- as.integer(as.factor(sales$Invoice.ID))
+
+needed.old <- sales %>% select(2,3,4,5,6,7,8,11,12,13,14,15,16)
+needed.old
+
+# removing the target variable total
+needed.new <- needed.old[c(-10, -13)]
+needed.new
+```
+
+
+
+```{r}
+# applying PCA to dataset
+which(apply(needed.new, 2, var)==0)
+needed.pca <- prcomp(needed.new[,1:11], scale. = TRUE, center = TRUE)
+summary(needed.pca)
+```
+```{r}
+# Calling str() to have a look at your PCA object
+
+str(needed.pca)
+```
+
+
+```{r}
+install.packages("devtools",dependencies=TRUE)
+library(devtools) 
+
+library(ggbiplot)
+ggbiplot(needed.pca)
+```
+# The first two components contribute the largest share(46%).The remaining propotion is shared with the rest of the principal components.
+
+
+Feature selection
+
+```{r}
+# filter method
+# loading the caret package
+suppressWarnings(
+        suppressMessages(if
+                         (!require(caret, quietly=TRUE))
+                install.packages("caret")))
+library(caret)
+```
+
+
+```{r}
+
+# Calculating the correlation matrix
+#
+correlationMatrix <- cor(needed.old)
+
+# Find attributes that are highly correlated
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75)
+
+# Highly correlated attributes
+
+highlyCorrelated
+
+names(needed.old[,highlyCorrelated])
+```
+
+
+```{r}
+# Installing and loading the corrplot package for plotting
+# ---
+# 
+suppressWarnings(
+        suppressMessages(if
+                         (!require(corrplot, quietly=TRUE))
+                install.packages("corrplot")))
+library(corrplot)
+```
+
+
+```{r}
+# Removing the variables with a higher correlation 
+# and comparing the results graphically 
+# ---
+# 
+# Removing Redundant Features 
+# ---
+# 
+needed.old1<-needed.old[-highlyCorrelated]
+
+# Performing our graphical comparison
+# ---
+# 
+par(mfrow = c(1, 2))
+corrplot(correlationMatrix, order = "hclust")
+corrplot(cor(needed.old1), order = "hclust")
+```
+
+
+Association Analysis
+
+```{r}
+
+
+# Loading the arules library
+#
+library(arules)
+
+```
+
+```{r}
+
+# reading of the data
+data <- "http://bit.ly/SupermarketDatasetII"
+retail <- read.transactions("http://bit.ly/SupermarketDatasetII", sep = ",")
+head(retail)
+nrow(retail)
+ncol(retail)
+names(retail)
+str(retail)
+```
+
+
+```{r}
+# Verifying the object's class
+
+class(retail)
+
+```
+
+```{r}
+# getting the summary
+summary(retail)
+```
+
+
+```{r}
+
+itemFrequency(retail[, 1:10], ,type = "absolute")
+
+
+
+```
+
+
+```{r}
+
+# Displaying top 10 most common items in the transactions dataset 
+# and the items whose relative importance is at least 10%
+# 
+par(mfrow = c(1, 2))
+
+# plot the frequency of items
+itemFrequencyPlot(retail, topN = 10,col="darkgreen", main = "Top ten common items")
+itemFrequencyPlot(retail, support = 0.1,col="darkred", main = "items whose relative importance is at least 10%")
+
+```
+
+
+```{r}
+
+# Building a model based on association rules 
+# using the apriori function 
+# ---
+# We use Min Support as 0.001 and confidence as 0.8
+# ---
+# 
+rules <- apriori (retail, parameter = list(supp = 0.001, conf = 0.8))
+rules
+```
+
+
+```{r}
+rules2 <- apriori (retail, parameter = list(supp = 0.002, conf = 0.8)) 
+```
+
+
+```{r}
+rules3 <- apriori (retail, parameter = list(supp = 0.001, conf = 0.6)) 
+```
+
+
+```{r}
+# We can perform an exploration of our model 
+# through the use of the summary function
+
+summary(rules)
+```
+
+```{r}
+# Observing rules built in our model i.e. first 5 model rules
+# 
+inspect(rules[1:5])
+```
+from what is observed, if someone buys frozen smoothie, there's an 88% chance that he/she will buy mineral water
+
+```{r}
+# Ordering these rules by a criteria such as the level of confidence
+# then looking at the first five rules.
+# We can also use different criteria such as: (by = "lift" or by = "support")
+# 
+rules<-sort(rules, by="confidence", decreasing=TRUE)
+inspect(rules[1:5])
+
+```
+The given five rules have a confidence of 100 
+
+
+```{r}
+#creating a subset of rules concerning these products 
+
+# This would tell us the items that the customers bought before purchasing milk
+milk <- subset(rules, subset = rhs %pin% "milk")
+
+# Then order by confidence
+
+milk <- sort(milk, by="confidence", decreasing=TRUE)
+inspect(milk[1:5])
+
+
+```
+for the group of customers that bought cake, meatballs, mineral water,they bought milk as proved by the confidence limit of 100% 
+
+
+```{r}
+
