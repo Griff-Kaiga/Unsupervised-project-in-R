@@ -371,4 +371,78 @@ for the group of customers that bought cake, meatballs, mineral water,they bough
 
 
 ```{r}
+# Checking other items bought for customers who bought milk
+
+# Subset the rules
+
+milk <- subset(rules, subset = lhs %pin% "milk")
+
+# Order by confidence
+
+milk <- sort(milk, by="confidence", decreasing=TRUE)
+
+# inspect top 5
+
+inspect(milk[15:19])
+```
+for customers who bought milk, they also bought mineral water, spaghetti, and french fries 
+
+
+
+Anomaly Detection
+
+
+```{r}
+# loading the data
+retail1 <- read.csv("sales_forecasting.csv")
+head(retail1)
+str(retail1)
+nrow(retail1)
+ncol(retail1)
+
+```
+```{r}
+# check for missing values in our data
+any(is.na(retail1))
+```
+
+
+```{r}
+# Convert Date column to date type
+
+retail1$Date <- as.Date(retail1$Date, "%m/%d/%y")
+str(retail1)
+```
+
+```{r}
+# installing the necessary package
+install.packages("anomalize")
+library(anomalize)
+```
+
+```{r}
+# sorting the dates column
+retail1 <- retail1[order(retail1$Date),]
+# Grouping the data to get the average sales per day
+
+retail_average <- aggregate(Sales ~ Date, retail1, mean)
+head(retail_average)
+```
+```{r}
+# visualizing the data
+
+library(tibbletime)
+library(dplyr)
+library(tibble)
+
+
+retail_average <- tbl_time(retail_average, Date)
+
+retail_average %>%
+    time_decompose(Sales) %>%
+    anomalize(remainder) %>%
+    plot_anomaly_decomposition() +
+    ggtitle(" Anomaly Detection Plot")
+```
+from the plots, we did not detect any anomaly
 
